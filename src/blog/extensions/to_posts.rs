@@ -1,33 +1,27 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use nostr_sdk::{Event, Kind};
 use serde_json::Value;
 
-use crate::objects::post::{Author, Post};
+use crate::{
+    Blog,
+    objects::post::{Author, Post},
+    types::Authors,
+};
 
-pub trait ToPosts<'a> {
-    fn to_posts(self) -> impl Iterator<Item = Post<'a>>;
+pub trait ToPosts {
+    fn to_posts<'a>(self, authors: Authors) -> impl Iterator<Item = Post<'static>>;
 }
 
-impl<'a, 'e, I> ToPosts<'a> for I
+// Implementation for owned events
+impl<I> ToPosts for I
 where
-    I: Iterator<Item = &'e Event>,
+    I: Iterator<Item = Event>,
 {
-    fn to_posts(mut self) -> impl Iterator<Item = Post<'a>> {
-        // First get author information
-        let author = self
-            .find(|e| e.kind == Kind::Metadata)
-            .map(|x| {
-                let json: Value = serde_json::from_str(&x.content).unwrap();
-                Author {
-                    username: json["name"].as_str().map(|x| x.to_owned().into()),
-                    display_name: json["display_name"].as_str().map(|x| x.to_owned().into()),
-                }
-            })
-            .unwrap_or_default();
+    fn to_posts<'a>(self, authors: Authors) -> impl Iterator<Item = Post<'static>> {
         self.filter_map(move |e| match e.kind {
             Kind::TextNote | Kind::LongFormTextNote => {
-                let categories: Vec<Cow<'_, str>> = e
+                let categories: Vec<Cow<'static, str>> = e
                     .tags
                     .iter()
                     .filter_map(|t| {
@@ -35,16 +29,21 @@ where
                             return None;
                         };
                         if k == "t" {
-                            return Some(v.into());
+                            return Some(Cow::Owned(v.to_owned()));
                         }
                         None
                     })
                     .collect();
+                let author = authors
+                    .read()
+                    .get(&e.pubkey)
+                    .expect("There should always be an author for a event pubkey here")
+                    .clone();
                 Some(Post {
-                    author: author.clone(),
-                    content: e.content.to_owned().into(),
+                    author,
+                    content: Cow::Owned(e.content),
                     created_at: e.created_at,
-                    categories: vec![], // categories: e.tags.find(nostr_sdk::TagKind::Sub),
+                    categories,
                 })
             }
             _ => None,

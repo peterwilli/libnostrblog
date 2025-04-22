@@ -6,7 +6,10 @@ use test_log::test;
 use tokio::sync::{OnceCell, RwLock};
 use tracing::{debug, field::debug};
 
-use crate::{blog::fetch_posts::FetchPostExt, Blog};
+use crate::{
+    Blog,
+    blog::{fetch_authors::FetchAuthorsExt, fetch_posts::FetchPostExt, poll_posts::PollPostsExt},
+};
 
 static TEST_OWNER_PUBKEY: Lazy<PublicKey> = Lazy::new(|| {
     PublicKey::from_bech32("npub17rfmhcfv2f078kg0jrx4efw7pcj5gxfc3j49syvtf4vn0m58ta5sg00n88")
@@ -35,9 +38,22 @@ async fn get_test_client() -> &'static Client {
 }
 
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 1))]
+async fn test_poll_posts() -> Result<()> {
+    let client = get_test_client().await;
+    let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);
+    blog.fetch_authors().await.unwrap();
+    let mut rx = blog.poll_posts().await.unwrap();
+    while let Some(post) = rx.recv().await {
+        debug!("Post: {:?}", post);
+    }
+    Ok(())
+}
+
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 1))]
 async fn test_posts() -> Result<()> {
     let client = get_test_client().await;
-    let blog = Blog::new(client.clone(), TEST_OWNER_PUBKEY.clone());
+    let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);
+    blog.fetch_authors().await.unwrap();
     let posts = blog.fetch_posts().await.unwrap();
     debug!("posts: {:?}", posts);
     Ok(())

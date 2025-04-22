@@ -1,10 +1,11 @@
 use std::time::Duration;
 
+use crate::blog::extensions::filters::FiltersExt;
 use crate::blog::extensions::to_posts::ToPosts;
-use crate::blog::filters::PostsFiltersExt;
-use crate::{objects::post::Post, Blog};
+use crate::{Blog, objects::post::Post};
 use anyhow::Result;
 use async_trait::async_trait;
+use nostr_sdk::Filter;
 use tracing::debug;
 
 #[async_trait]
@@ -14,13 +15,22 @@ pub trait FetchPostExt {
 
 #[async_trait]
 impl FetchPostExt for Blog<'_> {
-    async fn fetch_posts(&self) -> Result<Vec<Post<'_>>> {
+    async fn fetch_posts(&self) -> Result<Vec<Post>> {
+        let owners = self
+            .authors
+            .read()
+            .iter()
+            .map(|(pk, _a)| **pk)
+            .collect::<Vec<_>>();
         let events = self
             .client
-            .fetch_events(vec![self.owner_filter()], Duration::from_secs(10))
+            .fetch_events(
+                Filter::new().posts_by_owners(owners),
+                Duration::from_secs(10),
+            )
             .await?;
         debug!("Events: {:?}", events);
-        let posts = events.iter().to_posts().collect();
+        let posts = events.into_iter().to_posts(self.authors.clone()).collect();
         Ok(posts)
     }
 }
