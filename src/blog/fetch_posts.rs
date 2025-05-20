@@ -8,12 +8,12 @@ use async_trait::async_trait;
 use nostr_sdk::Filter;
 use tracing::debug;
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait FetchPostExt {
     async fn fetch_posts(&self) -> Result<Vec<Post<'_>>>;
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl FetchPostExt for Blog<'_> {
     async fn fetch_posts(&self) -> Result<Vec<Post>> {
         let owners = self

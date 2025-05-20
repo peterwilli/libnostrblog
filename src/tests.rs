@@ -1,10 +1,10 @@
+use any_spawner::Executor;
 use anyhow::Result;
-use nostr_sdk::{Client, Filter, FromBech32, Keys, Kind, Options, PublicKey};
+use nostr_sdk::{Client, FromBech32, Keys, Options, PublicKey};
 use once_cell::sync::Lazy;
-use std::{sync::Arc, time::Duration};
 use test_log::test;
-use tokio::sync::{OnceCell, RwLock};
-use tracing::{debug, field::debug};
+use tokio::sync::OnceCell;
+use tracing::debug;
 
 use crate::{
     Blog,
@@ -18,6 +18,7 @@ static TEST_OWNER_PUBKEY: Lazy<PublicKey> = Lazy::new(|| {
 static TEST_GLOBAL_CLIENT: OnceCell<Client> = OnceCell::const_new();
 
 async fn get_test_client() -> &'static Client {
+    Executor::init_tokio().ok();
     TEST_GLOBAL_CLIENT
         .get_or_init(|| async {
             let keys = Keys::generate();

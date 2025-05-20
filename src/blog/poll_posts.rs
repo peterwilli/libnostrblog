@@ -1,17 +1,18 @@
 use super::extensions::{filters::FiltersExt, to_posts::ToPosts};
 use crate::{Blog, objects::post::Post};
+use any_spawner::Executor;
 use anyhow::Result;
 use async_trait::async_trait;
 use nostr_sdk::prelude::*;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait PollPostsExt {
     async fn poll_posts(&self) -> Result<mpsc::Receiver<Post<'static>>>;
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl PollPostsExt for Blog<'_> {
     async fn poll_posts(&self) -> Result<mpsc::Receiver<Post<'static>>> {
         let (tx, rx) = mpsc::channel(1);
@@ -32,7 +33,7 @@ impl PollPostsExt for Blog<'_> {
             )
             .await?;
 
-        tokio::spawn(async move {
+        Executor::spawn(async move {
             while let Some(event) = handle.next().await {
                 // Ensure the posts are created in the async block
                 let post = [event]

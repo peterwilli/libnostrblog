@@ -1,13 +1,8 @@
 use std::{borrow::Cow, sync::Arc};
 
 use nostr_sdk::{Event, Kind};
-use serde_json::Value;
 
-use crate::{
-    Blog,
-    objects::post::{Author, Post},
-    types::Authors,
-};
+use crate::{blog::utils::extract_header, objects::post::Post, types::Authors};
 
 pub trait ToPosts {
     fn to_posts<'a>(self, authors: Authors) -> impl Iterator<Item = Post<'static>>;
@@ -40,6 +35,7 @@ where
                     .expect("There should always be an author for a event pubkey here")
                     .clone();
                 Some(Post {
+                    title: Cow::Owned(extract_header(&e.content).unwrap_or("No title").to_owned()),
                     author,
                     content: Cow::Owned(e.content),
                     created_at: e.created_at,

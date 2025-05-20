@@ -1,13 +1,10 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
-use nostr_sdk::{Client, PublicKey, Timestamp};
 use objects::post::{Author, Post};
 use parking_lot::RwLock;
 use types::Authors;
+
+pub use nostr_sdk::*;
 
 #[cfg(test)]
 mod tests;

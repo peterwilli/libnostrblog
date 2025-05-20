@@ -24,6 +24,7 @@ impl Author<'_> {
 #[derive(Clone, Debug)]
 pub struct Post<'a> {
     pub author: Author<'a>,
+    pub title: Cow<'a, str>,
     pub content: Cow<'a, str>,
     pub created_at: Timestamp,
     pub categories: Vec<Cow<'a, str>>,

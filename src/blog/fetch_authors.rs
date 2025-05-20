@@ -9,12 +9,12 @@ use nostr_sdk::Filter;
 use serde_json::Value;
 use tracing::debug;
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait FetchAuthorsExt {
     async fn fetch_authors(&self) -> Result<()>;
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl FetchAuthorsExt for Blog<'_> {
     async fn fetch_authors(&self) -> Result<()> {
         let owners = self
