@@ -33,7 +33,7 @@ impl PollPostsExt for Blog<'_> {
             )
             .await?;
 
-        Executor::spawn(async move {
+        Executor::spawn_local(async move {
             while let Some(event) = handle.next().await {
                 // Ensure the posts are created in the async block
                 let post = [event]
