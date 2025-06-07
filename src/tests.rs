@@ -3,7 +3,10 @@ use anyhow::Result;
 use nostr_sdk::{Client, FromBech32, Keys, Options, PublicKey};
 use once_cell::sync::Lazy;
 use test_log::test;
-use tokio::sync::OnceCell;
+use tokio::{
+    sync::OnceCell,
+    task::{LocalSet, spawn_local},
+};
 use tracing::debug;
 
 use crate::{
@@ -43,14 +46,19 @@ async fn test_poll_posts() -> Result<()> {
     let client = get_test_client().await;
     let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);
     blog.fetch_authors().await.unwrap();
-    let mut rx = blog.poll_posts().await.unwrap();
-    while let Some(post) = rx.recv().await {
-        debug!("Post: {:?}", post);
-    }
+    let local = LocalSet::new();
+    local
+        .run_until(async move {
+            let mut rx = blog.poll_posts(None).await.unwrap();
+            while let Some(post) = rx.recv().await {
+                debug!("Post: {:?}", post);
+            }
+        })
+        .await;
     Ok(())
 }
 
-#[test(tokio::test(flavor = "multi_thread", worker_threads = 1))]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn test_posts() -> Result<()> {
     let client = get_test_client().await;
     let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);

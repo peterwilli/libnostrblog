@@ -1,10 +1,9 @@
+use crate::types::CheapClonePubkey;
+use nostr_sdk::Timestamp;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-use nostr_sdk::Timestamp;
-
-use crate::types::CheapClonePubkey;
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Author<'a> {
     pub username: Option<Cow<'a, str>>,
     pub display_name: Option<Cow<'a, str>>,
@@ -21,7 +20,7 @@ impl Author<'_> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Post<'a> {
     pub author: Author<'a>,
     pub title: Cow<'a, str>,

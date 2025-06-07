@@ -1,8 +1,7 @@
 use std::time::Duration;
 
+use crate::Blog;
 use crate::blog::extensions::filters::FiltersExt;
-use crate::blog::extensions::to_posts::ToPosts;
-use crate::{Blog, objects::post::Post};
 use anyhow::Result;
 use async_trait::async_trait;
 use nostr_sdk::Filter;
@@ -29,7 +28,8 @@ impl FetchAuthorsExt for Blog<'_> {
                 Filter::new().metadata_by_owners(owners),
                 Duration::from_secs(10),
             )
-            .await?;
+            .await
+            .unwrap();
         debug!("Events: {:?}", events);
         let mut authors = self.authors.write();
         for event in events.iter() {

@@ -10,12 +10,12 @@ use tracing::debug;
 
 #[async_trait(?Send)]
 pub trait FetchPostExt {
-    async fn fetch_posts(&self) -> Result<Vec<Post<'_>>>;
+    async fn fetch_posts<'a>(&self) -> Result<Vec<Post<'a>>>;
 }
 
 #[async_trait(?Send)]
 impl FetchPostExt for Blog<'_> {
-    async fn fetch_posts(&self) -> Result<Vec<Post>> {
+    async fn fetch_posts<'a>(&self) -> Result<Vec<Post<'a>>> {
         let owners = self
             .authors
             .read()
@@ -28,7 +28,8 @@ impl FetchPostExt for Blog<'_> {
                 Filter::new().posts_by_owners(owners),
                 Duration::from_secs(10),
             )
-            .await?;
+            .await
+            .unwrap();
         debug!("Events: {:?}", events);
         let posts = events.into_iter().to_posts(self.authors.clone()).collect();
         Ok(posts)
