@@ -2,6 +2,7 @@ use crate::types::CheapClonePubkey;
 use nostr_sdk::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use url::Url;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Author<'a> {
@@ -28,4 +29,5 @@ pub struct Post<'a> {
     pub excerpt: Cow<'a, str>,
     pub created_at: Timestamp,
     pub categories: Vec<Cow<'a, str>>,
+    pub featured_image: Option<Url>,
 }
