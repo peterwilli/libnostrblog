@@ -1,5 +1,5 @@
 use crate::types::CheapClonePubkey;
-use nostr_sdk::Timestamp;
+use nostr_sdk::{EventId, Timestamp};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use url::Url;
@@ -23,6 +23,7 @@ impl Author<'_> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Post<'a> {
+    pub id: EventId,
     pub author: Author<'a>,
     pub title: Cow<'a, str>,
     pub content: Cow<'a, str>,

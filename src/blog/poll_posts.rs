@@ -35,13 +35,10 @@ impl PollPostsExt for Blog<'_> {
             .await?;
         Executor::spawn_local(async move {
             while let Some(event) = handle.next().await {
-                let post = [event]
-                    .into_iter()
-                    .to_posts(authors.clone())
-                    .next()
-                    .unwrap();
-                if tx.send(post).await.is_err() {
-                    break;
+                if let Some(post) = [event].into_iter().to_posts(authors.clone()).next() {
+                    if tx.send(post).await.is_err() {
+                        break;
+                    }
                 }
             }
         });

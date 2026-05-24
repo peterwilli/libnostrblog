@@ -29,4 +29,18 @@ impl BlogPoster {
         let event_id = self.client.send_event_builder(builder).await?;
         Ok(event_id.to_bech32()?)
     }
+
+    pub async fn upload_comment(
+        &self,
+        content: &str,
+        comment_to: &Event,
+        root: Option<&Event>,
+        relay_url: Option<RelayUrl>,
+    ) -> Result<String> {
+        let event_id = self
+            .client
+            .send_event_builder(EventBuilder::comment(content, comment_to, root, relay_url))
+            .await?;
+        Ok(event_id.to_bech32()?)
+    }
 }

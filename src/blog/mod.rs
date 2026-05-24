@@ -1,3 +1,4 @@
+pub mod comments;
 pub mod extensions;
 pub mod fetch_authors;
 pub mod fetch_posts;

@@ -19,10 +19,24 @@ pub struct Blog<'a> {
     categories: RwLock<HashSet<Cow<'a, str>>>,
     posts: RwLock<Vec<Post<'a>>>,
     last_pull: Timestamp,
+    settings: BlogSettings,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BlogSettings {
+    pub require_comment_approval: bool,
 }
 
 impl Blog<'_> {
     pub fn new(client: Client, owners: Vec<PublicKey>) -> Self {
+        Self::new_with_settings(client, owners, BlogSettings::default())
+    }
+
+    pub fn new_with_settings(
+        client: Client,
+        owners: Vec<PublicKey>,
+        settings: BlogSettings,
+    ) -> Self {
         Self {
             client,
             authors: Arc::new(RwLock::new(
@@ -37,6 +51,19 @@ impl Blog<'_> {
             posts: Default::default(),
             categories: Default::default(),
             last_pull: Timestamp::zero(),
+            settings,
         }
+    }
+
+    pub fn require_comment_approval(&self) -> bool {
+        self.settings.require_comment_approval
+    }
+
+    pub(crate) fn owner_public_keys(&self) -> Vec<PublicKey> {
+        self.authors
+            .read()
+            .iter()
+            .map(|(pk, _a)| **pk)
+            .collect::<Vec<_>>()
     }
 }
