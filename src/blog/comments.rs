@@ -13,7 +13,8 @@ pub const MODERATION_LABEL_NAMESPACE: &str = "libnostrblog/moderation";
 pub const APPROVED_LABEL: &str = "approved";
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait CommentsExt {
     async fn fetch_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
     async fn fetch_all_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
@@ -22,7 +23,8 @@ pub trait CommentsExt {
     async fn approve_comment(&self, comment_id: EventId) -> Result<String>;
 }
 
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl CommentsExt for Blog<'_> {
     async fn fetch_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>> {
         let comments = self.fetch_all_comments(post_id).await?;

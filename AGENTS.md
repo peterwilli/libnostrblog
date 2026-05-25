@@ -17,7 +17,7 @@
 - `src/objects/` contains serializable domain objects: posts, authors, and comments.
 - `src/blog/fetch_authors.rs` fetches owner metadata into the author cache.
 - `src/blog/fetch_posts.rs` fetches owner posts from relays and converts them into `Post` values.
-- `src/blog/poll_posts.rs` contains post polling behavior.
+- `src/blog/stream_posts.rs` contains post streaming behavior.
 - `src/blog/comments.rs` contains comment fetching, approval labels, and moderation helpers.
 - `src/blog/extensions/` contains conversion and Nostr filter extension traits.
 - `src/blog/poster/` contains the post upload API and typed post builder.

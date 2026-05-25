@@ -4,7 +4,7 @@ use crate::{
         comments::{APPROVED_LABEL, MODERATION_LABEL_NAMESPACE, approval_event_builder},
         fetch_authors::FetchAuthorsExt,
         fetch_posts::FetchPostExt,
-        poll_posts::PollPostsExt,
+        stream_posts::StreamPostsExt,
     },
     objects::comment::Comment,
 };
@@ -53,14 +53,14 @@ async fn get_test_client(keys: Option<Keys>) -> &'static Client {
 }
 
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 1))]
-async fn test_poll_posts() -> Result<()> {
+async fn test_stream_posts() -> Result<()> {
     let client = get_test_client(None).await;
     let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);
     blog.fetch_authors().await.unwrap();
     let local = LocalSet::new();
     local
         .run_until(async move {
-            let mut rx = blog.poll_posts(None).await.unwrap();
+            let mut rx = blog.stream_posts(None).await.unwrap();
             while let Some(post) = rx.recv().await {
                 debug!("Post: {:?}", post);
             }
@@ -74,7 +74,7 @@ async fn test_posts() -> Result<()> {
     let client = get_test_client(None).await;
     let blog = Blog::new(client.clone(), vec![*TEST_OWNER_PUBKEY]);
     blog.fetch_authors().await.unwrap();
-    let posts = blog.fetch_posts().await.unwrap();
+    let posts = blog.fetch_posts(None).await.unwrap();
     debug!("posts: {:?}", posts);
     Ok(())
 }
@@ -219,7 +219,7 @@ async fn test_upload_post() -> Result<()> {
 
     let blog = Blog::new(client.clone(), vec![keys.public_key()]);
     blog.fetch_authors().await.unwrap();
-    let posts = blog.fetch_posts().await.unwrap();
+    let posts = blog.fetch_posts(None).await.unwrap();
     println!("posts: {:?}", posts);
     nak_server.kill().unwrap();
     Ok(())

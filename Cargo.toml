@@ -7,6 +7,7 @@ edition = "2024"
 any_spawner = { version = "0.3.0", features = ["tokio"] }
 anyhow = "1.0.98"
 async-trait = "0.1.88"
+futures-util = "0.3.31"
 lazy_static = "1.5.0"
 nostr = { version = "0.42.1", features = ["nip04"] }
 nostr-sdk = "0.42.0"
