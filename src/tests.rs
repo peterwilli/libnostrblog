@@ -1,7 +1,10 @@
 use crate::{
     Blog, BlogSettings,
     blog::{
-        comments::{APPROVED_LABEL, MODERATION_LABEL_NAMESPACE, approval_event_builder},
+        comments::{
+            APPROVED_LABEL, MODERATION_LABEL_NAMESPACE, approval_event_builder,
+            approval_event_builder_for_post,
+        },
         fetch_authors::FetchAuthorsExt,
         fetch_posts::FetchPostExt,
         stream_posts::StreamPostsExt,
@@ -117,6 +120,32 @@ fn test_approval_event_builder_creates_signed_nip32_label_event() -> Result<()> 
     approval.verify()?;
 
     assert!(has_tag(&approval, &["e", comment.id.to_hex().as_str()]));
+    assert!(has_tag(&approval, &["L", MODERATION_LABEL_NAMESPACE]));
+    assert!(has_tag(
+        &approval,
+        &["l", APPROVED_LABEL, MODERATION_LABEL_NAMESPACE]
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn test_post_scoped_approval_event_builder_tags_comment_and_post() -> Result<()> {
+    let owner = Keys::generate();
+    let post = EventBuilder::text_note("Root blog post").sign_with_keys(&owner)?;
+    let commenter = Keys::generate();
+    let comment = EventBuilder::comment("Needs approval", &post, Some(&post), None)
+        .sign_with_keys(&commenter)?;
+
+    let approval = approval_event_builder_for_post(comment.id, post.id).sign_with_keys(&owner)?;
+    debug!("post-scoped approval event tags: {:?}", approval.tags);
+
+    assert_eq!(approval.kind, Kind::Custom(1985));
+    assert_eq!(approval.pubkey, owner.public_key());
+    approval.verify()?;
+
+    assert!(has_tag(&approval, &["e", comment.id.to_hex().as_str()]));
+    assert!(has_tag(&approval, &["E", post.id.to_hex().as_str()]));
     assert!(has_tag(&approval, &["L", MODERATION_LABEL_NAMESPACE]));
     assert!(has_tag(
         &approval,

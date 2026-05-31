@@ -18,21 +18,25 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 pub trait CommentsExt {
     async fn fetch_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
     async fn fetch_all_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
+    async fn fetch_approved_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
     async fn list_unapproved_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>>;
     async fn list_all_unapproved_comments<'a>(&self) -> Result<Vec<Comment<'a>>>;
     async fn approve_comment(&self, comment_id: EventId) -> Result<String>;
+    async fn approve_comment_for_post(
+        &self,
+        comment_id: EventId,
+        post_id: EventId,
+    ) -> Result<String>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl CommentsExt for Blog<'_> {
     async fn fetch_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>> {
-        let comments = self.fetch_all_comments(post_id).await?;
-
         if self.require_comment_approval() {
-            Ok(comments.into_iter().filter(|c| c.approved).collect())
+            self.fetch_approved_comments(post_id).await
         } else {
-            Ok(comments)
+            self.fetch_all_comments(post_id).await
         }
     }
 
@@ -47,6 +51,22 @@ impl CommentsExt for Blog<'_> {
                 let is_approved = approved.contains(&event.id);
                 Comment::from_event(event, is_approved)
             })
+            .collect())
+    }
+
+    async fn fetch_approved_comments<'a>(&self, post_id: EventId) -> Result<Vec<Comment<'a>>> {
+        let approval_events = fetch_approval_events_for_post(self, post_id).await?;
+        let comment_ids = approval_events
+            .iter()
+            .filter(|event| has_approved_label(event))
+            .filter_map(approved_comment_id)
+            .collect::<HashSet<_>>();
+        let events = fetch_comment_events_by_ids(self, comment_ids).await?;
+
+        Ok(events
+            .into_iter()
+            .map(|event| Comment::from_event(event, true))
+            .filter(|comment| comment_targets_post(comment, post_id))
             .collect())
     }
 
@@ -83,6 +103,23 @@ impl CommentsExt for Blog<'_> {
         let event_id = self.client.send_event_builder(builder).await?;
         Ok(event_id.to_bech32()?)
     }
+
+    async fn approve_comment_for_post(
+        &self,
+        comment_id: EventId,
+        post_id: EventId,
+    ) -> Result<String> {
+        let signer = self.client.signer().await?;
+        let signer_pubkey = signer.get_public_key().await?;
+
+        if !self.owner_public_keys().contains(&signer_pubkey) {
+            bail!("comment moderation events must be signed by one of the configured owner keys");
+        }
+
+        let builder = approval_event_builder_for_post(comment_id, post_id);
+        let event_id = self.client.send_event_builder(builder).await?;
+        Ok(event_id.to_bech32()?)
+    }
 }
 
 pub fn approval_event_builder(comment_id: EventId) -> EventBuilder {
@@ -94,6 +131,25 @@ pub fn approval_event_builder(comment_id: EventId) -> EventBuilder {
         .tag(Tag::from_standardized_without_cell(TagStandard::Label {
             value: APPROVED_LABEL.to_owned(),
             namespace: Some(MODERATION_LABEL_NAMESPACE.to_owned()),
+        }))
+}
+
+pub fn approval_event_builder_for_post(comment_id: EventId, post_id: EventId) -> EventBuilder {
+    EventBuilder::new(Kind::Custom(1985), "")
+        .tag(Tag::event(comment_id))
+        .tag(Tag::from_standardized_without_cell(
+            TagStandard::LabelNamespace(MODERATION_LABEL_NAMESPACE.to_owned()),
+        ))
+        .tag(Tag::from_standardized_without_cell(TagStandard::Label {
+            value: APPROVED_LABEL.to_owned(),
+            namespace: Some(MODERATION_LABEL_NAMESPACE.to_owned()),
+        }))
+        .tag(Tag::from_standardized_without_cell(TagStandard::Event {
+            event_id: post_id,
+            relay_url: None,
+            marker: None,
+            public_key: None,
+            uppercase: true,
         }))
 }
 
@@ -132,6 +188,54 @@ async fn fetch_all_comment_events(blog: &Blog<'_>) -> Result<Vec<Event>> {
         .collect())
 }
 
+async fn fetch_comment_events_by_ids(
+    blog: &Blog<'_>,
+    comment_ids: HashSet<EventId>,
+) -> Result<Vec<Event>> {
+    if comment_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    Ok(blog
+        .client
+        .fetch_events(
+            Filter::new().kind(Kind::Comment).ids(comment_ids),
+            FETCH_TIMEOUT,
+        )
+        .await?
+        .into_iter()
+        .collect())
+}
+
+async fn fetch_approval_events_for_post(blog: &Blog<'_>, post_id: EventId) -> Result<Vec<Event>> {
+    let owners = blog.owner_public_keys();
+    if owners.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let owner_set = owners.iter().copied().collect::<HashSet<_>>();
+    let scoped_events = blog
+        .client
+        .fetch_events(
+            approval_label_filter(owners.clone())
+                .custom_tag(SingleLetterTag::uppercase(Alphabet::E), post_id),
+            FETCH_TIMEOUT,
+        )
+        .await?;
+    let legacy_events = blog
+        .client
+        .fetch_events(approval_label_filter(owners), FETCH_TIMEOUT)
+        .await?;
+    let mut seen = HashSet::new();
+
+    Ok(scoped_events
+        .into_iter()
+        .chain(legacy_events.into_iter())
+        .filter(|event| owner_set.contains(&event.pubkey))
+        .filter(|event| seen.insert(event.id))
+        .collect())
+}
+
 async fn fetch_approved_comment_ids(
     blog: &Blog<'_>,
     comment_ids: Vec<EventId>,
@@ -165,6 +269,13 @@ async fn fetch_approved_comment_ids(
         .collect())
 }
 
+fn approval_label_filter(owners: Vec<PublicKey>) -> Filter {
+    Filter::new()
+        .kind(Kind::Custom(1985))
+        .authors(owners)
+        .custom_tag(SingleLetterTag::lowercase(Alphabet::L), APPROVED_LABEL)
+}
+
 fn has_approved_label(event: &Event) -> bool {
     event.tags.iter().any(|tag| {
         let values = tag.as_slice();
@@ -191,4 +302,8 @@ fn approved_comment_id(event: &Event) -> Option<EventId> {
             None
         }
     })
+}
+
+fn comment_targets_post(comment: &Comment<'_>, post_id: EventId) -> bool {
+    comment.root == Some(post_id) || comment.parent == Some(post_id)
 }
