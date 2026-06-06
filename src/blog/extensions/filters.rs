@@ -9,13 +9,11 @@ pub trait FiltersExt {
 
 impl FiltersExt for Filter {
     fn posts_by_owner(self, pubkey: PublicKey) -> Filter {
-        self.author(pubkey)
-            .kinds([Kind::TextNote, Kind::LongFormTextNote])
+        self.author(pubkey).kinds([Kind::LongFormTextNote])
     }
 
     fn posts_by_owners(self, pubkeys: Vec<PublicKey>) -> Filter {
-        self.authors(pubkeys)
-            .kinds([Kind::TextNote, Kind::LongFormTextNote])
+        self.authors(pubkeys).kinds([Kind::LongFormTextNote])
     }
 
     fn metadata_by_owner(self, pubkey: PublicKey) -> Filter {

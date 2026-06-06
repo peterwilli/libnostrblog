@@ -87,11 +87,17 @@ fn test_comment_from_nip22_event() -> Result<()> {
     let owner = Keys::generate();
     let commenter = Keys::generate();
 
-    let root = EventBuilder::text_note("Root blog post").sign_with_keys(&owner)?;
-    let parent = EventBuilder::comment("Parent comment", &root, Some(&root), None)
+    let root = EventBuilder::long_form_text_note("Root blog post").sign_with_keys(&owner)?;
+    let parent = nip22_comment_builder("Parent comment", root.id, root.kind, root.id, root.kind)
         .sign_with_keys(&commenter)?;
-    let event = EventBuilder::comment("A moderated comment", &parent, Some(&root), None)
-        .sign_with_keys(&commenter)?;
+    let event = nip22_comment_builder(
+        "A moderated comment",
+        root.id,
+        root.kind,
+        parent.id,
+        parent.kind,
+    )
+    .sign_with_keys(&commenter)?;
 
     let comment = Comment::from_event(event, false);
     debug!("comment parsed from NIP-22 event: {:?}", comment);
@@ -109,7 +115,9 @@ fn test_comment_from_nip22_event() -> Result<()> {
 fn test_approval_event_builder_creates_signed_nip32_label_event() -> Result<()> {
     let owner = Keys::generate();
     let commenter = Keys::generate();
-    let comment = EventBuilder::text_note("Needs approval").sign_with_keys(&commenter)?;
+    let post = EventBuilder::long_form_text_note("Root blog post").sign_with_keys(&owner)?;
+    let comment = nip22_comment_builder("Needs approval", post.id, post.kind, post.id, post.kind)
+        .sign_with_keys(&commenter)?;
 
     let approval = approval_event_builder(comment.id).sign_with_keys(&owner)?;
     debug!("approval NIP-32 label event: {:?}", approval);
@@ -129,12 +137,28 @@ fn test_approval_event_builder_creates_signed_nip32_label_event() -> Result<()> 
     Ok(())
 }
 
+fn nip22_comment_builder(
+    content: &str,
+    root_id: EventId,
+    root_kind: Kind,
+    parent_id: EventId,
+    parent_kind: Kind,
+) -> EventBuilder {
+    EventBuilder::new(Kind::Comment, content).tags([
+        Tag::parse(["E", root_id.to_hex().as_str(), "", "root"]).expect("valid root tag"),
+        Tag::parse(["K", root_kind.as_u16().to_string().as_str()]).expect("valid root kind tag"),
+        Tag::parse(["e", parent_id.to_hex().as_str(), "", "reply"]).expect("valid parent tag"),
+        Tag::parse(["k", parent_kind.as_u16().to_string().as_str()])
+            .expect("valid parent kind tag"),
+    ])
+}
+
 #[test]
 fn test_post_scoped_approval_event_builder_tags_comment_and_post() -> Result<()> {
     let owner = Keys::generate();
-    let post = EventBuilder::text_note("Root blog post").sign_with_keys(&owner)?;
+    let post = EventBuilder::long_form_text_note("Root blog post").sign_with_keys(&owner)?;
     let commenter = Keys::generate();
-    let comment = EventBuilder::comment("Needs approval", &post, Some(&post), None)
+    let comment = nip22_comment_builder("Needs approval", post.id, post.kind, post.id, post.kind)
         .sign_with_keys(&commenter)?;
 
     let approval = approval_event_builder_for_post(comment.id, post.id).sign_with_keys(&owner)?;

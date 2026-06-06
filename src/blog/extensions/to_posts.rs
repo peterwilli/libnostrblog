@@ -20,7 +20,7 @@ where
 {
     fn to_posts<'a>(self, authors: Authors) -> impl Iterator<Item = Post<'a>> {
         self.filter_map(move |e| match e.kind {
-            Kind::TextNote | Kind::LongFormTextNote => {
+            Kind::LongFormTextNote => {
                 let categories = get_tag_values(&e, "t");
                 let title = get_tag_values(&e, "title")
                     .first()
@@ -75,23 +75,24 @@ mod tests {
     }
 
     #[test]
-    fn text_note_without_image_becomes_post_without_featured_image() -> Result<()> {
+    fn long_form_text_note_becomes_post() -> Result<()> {
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("content")
+        let event = EventBuilder::long_form_text_note("content")
             .tag(Tag::title("Title"))
             .sign_with_keys(&keys)?;
 
         let post = [event].into_iter().to_posts(authors_for(&keys)).next();
 
         assert!(post.is_some());
-        assert_eq!(post.unwrap().featured_image, None);
+        assert_eq!(post.unwrap().title, "Title");
         Ok(())
     }
 
     #[test]
-    fn text_note_with_invalid_image_url_becomes_post_without_featured_image() -> Result<()> {
+    fn long_form_text_note_with_invalid_image_url_becomes_post_without_featured_image() -> Result<()>
+    {
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("content")
+        let event = EventBuilder::long_form_text_note("content")
             .tag(Tag::title("Title"))
             .tag(Tag::parse(["image", "not a url"])?)
             .sign_with_keys(&keys)?;
@@ -104,9 +105,9 @@ mod tests {
     }
 
     #[test]
-    fn text_note_without_prefetched_author_uses_pubkey_fallback() -> Result<()> {
+    fn long_form_text_note_without_prefetched_author_uses_pubkey_fallback() -> Result<()> {
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("content").sign_with_keys(&keys)?;
+        let event = EventBuilder::long_form_text_note("content").sign_with_keys(&keys)?;
         let authors = Arc::new(RwLock::new(HashMap::new()));
 
         let post = [event].into_iter().to_posts(authors).next().unwrap();

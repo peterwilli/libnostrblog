@@ -49,11 +49,9 @@ pub fn post_deletion_event_builder(
 }
 
 pub fn deletion_aware_post_filter(owners: Vec<nostr_sdk::PublicKey>) -> Filter {
-    Filter::new().authors(owners).kinds([
-        Kind::TextNote,
-        Kind::LongFormTextNote,
-        Kind::EventDeletion,
-    ])
+    Filter::new()
+        .authors(owners)
+        .kinds([Kind::LongFormTextNote, Kind::EventDeletion])
 }
 
 pub fn filter_deleted_events(events: Vec<Event>) -> Vec<Event> {
@@ -68,7 +66,7 @@ pub fn filter_deleted_events(events: Vec<Event>) -> Vec<Event> {
 fn deleted_event_ids(events: &[Event]) -> HashSet<EventId> {
     let posts = events
         .iter()
-        .filter(|event| matches!(event.kind, Kind::TextNote | Kind::LongFormTextNote))
+        .filter(|event| event.kind == Kind::LongFormTextNote)
         .map(|event| (event.id, (event.pubkey, event.kind)))
         .collect::<HashMap<_, _>>();
 
@@ -115,9 +113,9 @@ mod tests {
     use nostr_sdk::Keys;
 
     #[test]
-    fn deletion_request_removes_matching_author_post() -> Result<()> {
+    fn deletion_request_removes_matching_author_long_form_post() -> Result<()> {
         let keys = Keys::generate();
-        let post = EventBuilder::text_note("post").sign_with_keys(&keys)?;
+        let post = EventBuilder::long_form_text_note("post").sign_with_keys(&keys)?;
         let deletion =
             post_deletion_event_builder(post.id, post.kind, "remove").sign_with_keys(&keys)?;
 
@@ -128,10 +126,10 @@ mod tests {
     }
 
     #[test]
-    fn deletion_request_does_not_remove_other_author_post() -> Result<()> {
+    fn deletion_request_does_not_remove_other_author_long_form_post() -> Result<()> {
         let post_keys = Keys::generate();
         let other_keys = Keys::generate();
-        let post = EventBuilder::text_note("post").sign_with_keys(&post_keys)?;
+        let post = EventBuilder::long_form_text_note("post").sign_with_keys(&post_keys)?;
         let deletion = post_deletion_event_builder(post.id, post.kind, "remove")
             .sign_with_keys(&other_keys)?;
 
