@@ -114,6 +114,7 @@ mod tests {
         assert_eq!(*post.author.pubkey, keys.public_key());
         assert_eq!(post.author.username, None);
         assert_eq!(post.author.display_name, None);
+        assert_eq!(post.author.picture, None);
         Ok(())
     }
 }

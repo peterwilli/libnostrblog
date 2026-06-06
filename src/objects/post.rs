@@ -8,7 +8,9 @@ use url::Url;
 pub struct Author<'a> {
     pub username: Option<Cow<'a, str>>,
     pub display_name: Option<Cow<'a, str>>,
+    pub picture: Option<Url>,
     pub pubkey: CheapClonePubkey,
+    pub about: Option<Cow<'a, str>>,
 }
 
 impl Author<'_> {
@@ -16,6 +18,8 @@ impl Author<'_> {
         Self {
             username: None,
             display_name: None,
+            picture: None,
+            about: None,
             pubkey: key,
         }
     }
